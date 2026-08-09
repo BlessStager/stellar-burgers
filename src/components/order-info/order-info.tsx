@@ -1,20 +1,49 @@
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo, useRef } from 'react';
 import { Preloader } from '../ui/preloader';
 import { OrderInfoUI } from '../ui/order-info';
 import { TIngredient } from '@utils-types';
 import { useParams } from 'react-router-dom';
-import { useSelector } from '../../services/store';
-import { selectFeedOrders, selectIngredients } from '@selectors';
+import { useDispatch, useSelector } from '../../services/store';
+import { fetchOrderByNumber } from '../../services/slices/feedSlice';
+
+import { selectIngredients } from '../../services/selectors/ingredientsSelectors';
+import {
+  selectFeedOrders,
+  selectOrderLoading,
+  selectSelectedOrder
+} from '../../services/selectors/feedSelectors';
+import { selectProfileOrders } from '../../services/selectors/profileOrdersSelectors';
 
 export const OrderInfo: FC = () => {
   const { number } = useParams<{ number: string }>();
   const orderNumber = Number(number);
 
-  const orders = useSelector(selectFeedOrders);
+  const dispatch = useDispatch();
+
+  const feedOrders = useSelector(selectFeedOrders);
+  const profileOrders = useSelector(selectProfileOrders);
+  const selectedOrder = useSelector(selectSelectedOrder);
+  const isOrderLoading = useSelector(selectOrderLoading);
   const ingredients = useSelector(selectIngredients);
 
   const orderData =
-    orders.find((order) => order.number === orderNumber) || null;
+    feedOrders.find((order) => order.number === orderNumber) ||
+    profileOrders.find((order) => order.number === orderNumber) ||
+    (selectedOrder && selectedOrder.number === orderNumber
+      ? selectedOrder
+      : null);
+
+  const requestedOrderRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!Number.isFinite(orderNumber)) return;
+    if (orderData) return;
+    if (isOrderLoading) return;
+    if (requestedOrderRef.current === orderNumber) return;
+
+    requestedOrderRef.current = orderNumber;
+    dispatch(fetchOrderByNumber(orderNumber));
+  }, [dispatch, orderData, isOrderLoading, orderNumber]);
 
   /* Готовим данные для отображения */
   const orderInfo = useMemo(() => {
@@ -57,6 +86,14 @@ export const OrderInfo: FC = () => {
       total
     };
   }, [orderData, ingredients]);
+
+  if (!ingredients.length || (!orderData && isOrderLoading)) {
+    return <Preloader />;
+  }
+
+  if (!orderData && !isOrderLoading) {
+    return <div>Заказ не найден</div>;
+  }
 
   if (!orderInfo) {
     return <Preloader />;

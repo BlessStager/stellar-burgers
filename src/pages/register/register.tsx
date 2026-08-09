@@ -8,9 +8,14 @@ export const Register: FC = () => {
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorText, setErrorText] = useState('');
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
+    setErrorText('');
 
     const result = await dispatch(
       registerUser({
@@ -22,15 +27,17 @@ export const Register: FC = () => {
 
     if (registerUser.fulfilled.match(result)) {
       navigate('/', { replace: true });
+      return;
+    }
+
+    if (registerUser.rejected.match(result)) {
+      setErrorText((result.payload as string) || 'Ошибка регистрации');
     }
   };
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-
   return (
     <RegisterUI
-      errorText=''
+      errorText={errorText}
       email={email}
       userName={userName}
       password={password}

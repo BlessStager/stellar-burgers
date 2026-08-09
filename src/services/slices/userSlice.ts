@@ -17,12 +17,14 @@ type TUserState = {
   user: TUser | null;
   isLoading: boolean;
   error: string | null;
+  isAuthChecked: boolean;
 };
 
 const initialState: TUserState = {
   user: null,
   isLoading: false,
-  error: null
+  error: null,
+  isAuthChecked: false
 };
 
 export const loginUser = createAsyncThunk<
@@ -33,7 +35,6 @@ export const loginUser = createAsyncThunk<
   try {
     const response = await loginUserApi(data);
     localStorage.setItem('refreshToken', response.refreshToken);
-    localStorage.setItem('accessToken', response.accessToken);
     setCookie('accessToken', response.accessToken);
     return response.user;
   } catch (error) {
@@ -51,7 +52,6 @@ export const registerUser = createAsyncThunk<
   try {
     const response = await registerUserApi(data);
     localStorage.setItem('refreshToken', response.refreshToken);
-    localStorage.setItem('accessToken', response.accessToken);
     setCookie('accessToken', response.accessToken);
     return response.user;
   } catch (error) {
@@ -82,7 +82,6 @@ export const logoutUser = createAsyncThunk<void, void, { rejectValue: string }>(
     try {
       await logoutApi();
       localStorage.removeItem('refreshToken');
-      localStorage.removeItem('accessToken');
       setCookie('accessToken', '');
     } catch (error) {
       return rejectWithValue(
@@ -138,7 +137,12 @@ export const resetPassword = createAsyncThunk<
 const userSlice = createSlice({
   name: 'user',
   initialState,
-  reducers: {},
+  reducers: {
+    setAuthChecked: (state) => {
+      state.isAuthChecked = true;
+    }
+  },
+
   extraReducers: (builder) => {
     builder
       .addCase(loginUser.pending, (state) => {
@@ -152,9 +156,6 @@ const userSlice = createSlice({
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Ошибка входа';
-      })
-      .addCase(fetchUser.fulfilled, (state, action) => {
-        state.user = action.payload;
       })
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
@@ -204,8 +205,24 @@ const userSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Ошибка сброса пароля';
+      })
+      .addCase(fetchUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload;
+        state.isAuthChecked = true;
+      })
+      .addCase(fetchUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.user = null;
+        state.error = action.payload || 'Ошибка получения пользователя';
+        state.isAuthChecked = true;
       });
   }
 });
 
 export const userReducer = userSlice.reducer;
+export const { setAuthChecked } = userSlice.actions;

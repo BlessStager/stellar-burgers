@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { TConstructorIngredient } from '@utils-types';
 import { BurgerConstructorUI } from '@ui';
 import { useDispatch, useSelector } from '../../services/store';
+import { selectUser } from '../../services/selectors/userSelectors';
 import {
   selectConstructorItems,
   selectOrderModalData,
@@ -17,6 +18,7 @@ export const BurgerConstructor: FC = () => {
   const constructorItems = useSelector(selectConstructorItems);
   const orderRequest = useSelector(selectOrderRequest);
   const orderModalData = useSelector(selectOrderModalData);
+  const user = useSelector(selectUser);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -25,7 +27,7 @@ export const BurgerConstructor: FC = () => {
   const onOrderClick = () => {
     if (!constructorItems.bun || orderRequest) return;
 
-    if (!localStorage.getItem('accessToken')) {
+    if (!user) {
       navigate('/login', { replace: true, state: { from: location } });
       return;
     }

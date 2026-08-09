@@ -21,7 +21,7 @@ import {
 import { ProtectedRoute } from '../protected-route/protected-route';
 import { fetchIngredients } from '@slices';
 import { useDispatch } from '../../services/store';
-import { fetchUser } from '../../services/slices/userSlice';
+import { fetchUser, setAuthChecked } from '../../services/slices/userSlice';
 
 const App: FC = () => {
   const location = useLocation();
@@ -31,8 +31,12 @@ const App: FC = () => {
   useEffect(() => {
     dispatch(fetchIngredients());
 
-    if (localStorage.getItem('refreshToken')) {
+    const hasToken = Boolean(localStorage.getItem('refreshToken'));
+
+    if (hasToken) {
       dispatch(fetchUser());
+    } else {
+      dispatch(setAuthChecked());
     }
   }, [dispatch]);
 

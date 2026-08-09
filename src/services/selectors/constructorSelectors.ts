@@ -1,16 +1,10 @@
 import { RootState } from '../store';
-import { TConstructorIngredient } from '../../utils/types';
-
-const emptyConstructor = {
-  bun: null as TConstructorIngredient | null,
-  ingredients: [] as TConstructorIngredient[]
-};
 
 export const selectConstructorItems = (state: RootState) =>
-  state.burgerConstructor?.constructorItems ?? emptyConstructor;
+  state.burgerConstructor.constructorItems;
 
 export const selectOrderRequest = (state: RootState) =>
-  state.burgerConstructor?.orderRequest ?? false;
+  state.burgerConstructor.orderRequest;
 
 export const selectOrderModalData = (state: RootState) =>
-  state.burgerConstructor?.orderModalData ?? null;
+  state.burgerConstructor.orderModalData;
