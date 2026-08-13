@@ -92,7 +92,7 @@
     "build-storybook": "storybook build",
     "lint": "eslint --ext .js,.jsx,.ts,.tsx ./src",
     "lint:fix": "npm run lint -- --fix",
-    "format": "prettier ./src --write",
+    "format": "prettier \"{src,tests}/**/*.{ts,tsx,js,jsx,json,css,md}\" --write",
     "test:jest": "jest",
     "test:jest:watch": "jest --watch",
     "test:playwright": "playwright test",

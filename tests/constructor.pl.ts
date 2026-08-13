@@ -1,35 +1,6 @@
 import { test, expect } from '@playwright/test';
 
 const HAR_PATH = 'tests/hars/constructor.har';
-const ORDER_NUMBER = 123456;
-
-const MOCK_USER_RESPONSE = {
-  success: true,
-  user: {
-    email: 'test@test.ru',
-    name: 'User'
-  }
-};
-
-const MOCK_CREATE_ORDER_RESPONSE = {
-  success: true,
-  name: 'Тестовый бургер',
-  order: {
-    _id: 'order-id-1',
-    status: 'done',
-    name: 'Тестовый заказ',
-    owner: {
-      name: 'Test User',
-      email: 'test@test.ru',
-      createdAt: '2026-01-01',
-      updatedAt: '2026-01-01'
-    },
-    createdAt: '2026-01-01',
-    updatedAt: '2026-01-01',
-    number: ORDER_NUMBER,
-    price: 1000
-  }
-};
 
 test.describe('Конструктор бургера', () => {
   test.beforeEach(async ({ page }) => {
@@ -44,7 +15,9 @@ test.describe('Конструктор бургера', () => {
       (res) => res.url().includes('/api/ingredients') && res.status() === 200
     );
 
-    await expect(page.locator('a[href*="/ingredients/"]').first()).toBeVisible();
+    await expect(
+      page.locator('a[href*="/ingredients/"]').first()
+    ).toBeVisible();
   });
 
   test('открытие модалки ингредиента, проверка данных и закрытие по крестику', async ({
@@ -56,7 +29,10 @@ test.describe('Конструктор бургера', () => {
     expect(href).toBeTruthy();
 
     const ingredientName = (
-      await ingredientLink.locator('p.text_type_main-default').first().textContent()
+      await ingredientLink
+        .locator('p.text_type_main-default')
+        .first()
+        .textContent()
     )?.trim();
     expect(ingredientName).toBeTruthy();
 
@@ -70,6 +46,7 @@ test.describe('Конструктор бургера', () => {
 
     await modalRoot.locator('button[type="button"]').first().click();
     await expect(page).toHaveURL('/');
+    await expect(modalRoot).not.toContainText('Детали ингредиента');
   });
 
   test('закрытие модалки ингредиента по клику на оверлей', async ({ page }) => {
@@ -88,14 +65,34 @@ test.describe('Конструктор бургера', () => {
     await page.mouse.click(10, viewport.height - 10);
 
     await expect(page).toHaveURL('/');
+    await expect(page.locator('#modals')).not.toContainText(
+      'Детали ингредиента'
+    );
   });
 
   test('добавление ингредиента в конструктор', async ({ page }) => {
-    await expect(page.getByText('Выберите булки').first()).toBeVisible();
+    const constructorRoot = page
+      .locator('section')
+      .filter({ has: page.getByRole('button', { name: 'Оформить заказ' }) })
+      .first();
+
+    await expect(
+      constructorRoot.getByText('Выберите булки').first()
+    ).toBeVisible();
+
+    const firstIngredientNameElement = page
+      .locator('a[href*="/ingredients/"] p.text_type_main-default')
+      .first();
+    const ingredientName = (
+      await firstIngredientNameElement.textContent()
+    )?.trim();
+    expect(ingredientName).toBeTruthy();
 
     await page.locator('button:has-text("Добавить")').first().click();
 
-    await expect(page.getByText('Выберите булки')).toHaveCount(0);
+    await expect(constructorRoot.getByText('Выберите булки')).toHaveCount(0);
+
+    await expect(constructorRoot).toContainText(ingredientName as string);
   });
 });
 
@@ -119,22 +116,6 @@ test.describe('Создание заказа', () => {
       update: process.env.PW_UPDATE_HAR === '1'
     });
 
-    await page.route('**/api/auth/user', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_USER_RESPONSE)
-      });
-    });
-
-    await page.route('**/api/orders', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(MOCK_CREATE_ORDER_RESPONSE)
-      });
-    });
-
     await page.goto('/');
 
     await page.waitForResponse(
@@ -142,24 +123,50 @@ test.describe('Создание заказа', () => {
     );
   });
 
-  test('оформление заказа, проверка номера и очистки конструктора', async ({ page }) => {
-    await page.locator('button:has-text("Добавить")').first().click();
+  test('оформление заказа, проверка номера и очистки конструктора', async ({
+    page
+  }) => {
+    const constructorRoot = page
+      .locator('section')
+      .filter({ has: page.getByRole('button', { name: 'Оформить заказ' }) })
+      .first();
 
-    const orderButton = page.getByRole('button', { name: 'Оформить заказ' });
-    await expect(orderButton).toBeEnabled();
+    const addButtons = page.locator('button:has-text("Добавить")');
+
+    await addButtons.first().click();
+    await addButtons.nth(2).click();
+
+    await expect(constructorRoot.getByText('Выберите булки')).toHaveCount(0);
+    await expect(constructorRoot.getByText('Выберите начинку')).toHaveCount(0);
+
+    const orderButton = constructorRoot.getByRole('button', {
+      name: 'Оформить заказ'
+    });
+
+    const orderResponsePromise = page.waitForResponse(
+      (res) =>
+        res.url().includes('/api/orders') &&
+        res.request().method() === 'POST' &&
+        res.status() === 200
+    );
+
     await orderButton.click();
 
-    const modalRoot = page.locator('#modals');
-    await expect(modalRoot).toContainText(String(ORDER_NUMBER));
+    const orderResponse = await orderResponsePromise;
+    const orderData = await orderResponse.json();
+    const orderNumber = orderData.order.number;
 
-    const bunsPlaceholders = page.getByText('Выберите булки');
+    const modalRoot = page.locator('#modals');
+    await expect(modalRoot).toContainText(String(orderNumber));
+
+    const bunsPlaceholders = constructorRoot.getByText('Выберите булки');
     await expect(bunsPlaceholders).toHaveCount(2);
     await expect(bunsPlaceholders.first()).toBeVisible();
     await expect(bunsPlaceholders.nth(1)).toBeVisible();
 
-    await expect(page.getByText('Выберите начинку')).toBeVisible();
+    await expect(constructorRoot.getByText('Выберите начинку')).toBeVisible();
 
     await modalRoot.locator('button[type="button"]').first().click();
-    await expect(modalRoot).not.toContainText(String(ORDER_NUMBER));
+    await expect(modalRoot).not.toContainText(String(orderNumber));
   });
 });

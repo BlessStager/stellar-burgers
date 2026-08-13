@@ -112,6 +112,36 @@ describe('burgerConstructor reducer', () => {
     ]);
   });
 
+  it('не должен перемещать ингредиент вверх, если index <= 0', () => {
+    const a = makeIngredient('a');
+    const b = makeIngredient('b');
+
+    let state = constructorReducer(undefined, addIngredient(a));
+    state = constructorReducer(state, addIngredient(b));
+
+    const before = state.constructorItems.ingredients.map((i) => i.id);
+
+    state = constructorReducer(state, moveIngredientUp(0));
+
+    const after = state.constructorItems.ingredients.map((i) => i.id);
+    expect(after).toEqual(before);
+  });
+
+  it('не должен перемещать ингредиент вниз, если index >= items.length - 1', () => {
+    const a = makeIngredient('a');
+    const b = makeIngredient('b');
+
+    let state = constructorReducer(undefined, addIngredient(a));
+    state = constructorReducer(state, addIngredient(b));
+
+    const before = state.constructorItems.ingredients.map((i) => i.id);
+
+    state = constructorReducer(state, moveIngredientDown(1)); // последний индекс
+
+    const after = state.constructorItems.ingredients.map((i) => i.id);
+    expect(after).toEqual(before);
+  });
+
   it('должен очищать модалку заказа через clearOrderModal', () => {
     const order: TOrder = {
       _id: 'ord-1',
